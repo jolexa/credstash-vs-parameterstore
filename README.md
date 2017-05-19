@@ -33,7 +33,7 @@ do the `docker` dance to get everything working (since my local system is OSX).
 This is troublesome in the future.
 ```
 docker build -t lambda-builder .
-docker run -it --rm -v /Users/jolexa/sandbox/credstash-vs-parameterstore:/build lambda-builder
+docker run -it --rm -v $(pwd):/build lambda-builder
 ```
 
 ### Faster?
