@@ -1,0 +1,115 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Credstash vs Parameter Store Test
+
+Parameters:
+  KeyArn:
+    Type: String
+  SSMKeyArn:
+    Type: String
+  Bucket:
+    Type: String
+  md5:
+    Type: String
+
+Resources:
+  CredstashRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Sid: 'Lambda'
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      Path: "/cfn/"
+      Policies:
+      - PolicyName: Credstash
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - kms:Decrypt
+            Resource:
+            - !Ref KeyArn
+      - PolicyName: CredstashDDB
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:Query
+            - dynamodb:GetItem
+            Resource:
+            - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/credential-store
+            Condition:
+              ForAllValues:StringLike:
+                dynamodb:LeadingKeys:
+                  - secret-test
+
+  CredstashFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python2.7
+      Handler: credstash-test.handler
+      Role: !GetAtt CredstashRole.Arn
+      Timeout: 10
+      Code:
+        S3Bucket: !Ref Bucket
+        S3Key: !Ref md5
+
+  SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Sid: 'Lambda'
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+            - sts:AssumeRole
+      Path: "/cfn/"
+      Policies:
+      - PolicyName: SSM
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:GetParameters
+            Resource:
+            - !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/secret-test"
+      - PolicyName: KMS
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - kms:Decrypt
+            Resource:
+            - !Ref SSMKeyArn
+
+  SSMFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python2.7
+      Handler: index.handler
+      Role: !GetAtt SSMRole.Arn
+      Timeout: 10
+      Code:
+        ZipFile: |
+          import boto3
+          def handler(event, context):
+              print(boto3.client('ssm').get_parameters(
+                      Names=['secret-test'],
+                      WithDecryption=True)
+                   )

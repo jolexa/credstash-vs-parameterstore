@@ -8,3 +8,7 @@ The purpose of this repo is to provide two example implementations using each me
 
 # Amazon EC2 Systems Manager Parameter Store
 [Amazon EC2 Systems Manager Parameter Store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-paramstore.html) provides secure storage for configuration data such as passwords, database strings, and license codes. You can store parameters as plain text or as encrypted objects
+
+
+docker build -t lambda-builder .
+docker run -it --rm -v /Users/jolexa/sandbox/credstash-vs-parameterstore:/build lambda-builder
